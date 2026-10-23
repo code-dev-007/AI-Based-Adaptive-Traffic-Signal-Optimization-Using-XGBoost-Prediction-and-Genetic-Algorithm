@@ -1,0 +1,108 @@
+"""Custom Genetic Algorithm that splits one signal cycle between four approaches.
+
+A chromosome is a list of 4 integer green times (seconds), one per approach.
+Rules every chromosome must obey (enforced by `repair`):
+  * each green is between MIN_GREEN and MAX_GREEN
+  * the greens add up to the green budget = CYCLE_LENGTH - total lost time
+Fitness (lower is better) = demand-weighted average delay per vehicle, estimated
+with Webster's uniform-delay formula, plus a penalty for oversaturated approaches.
+"""
+import random
+
+N_APPROACHES = 4
+MIN_GREEN = 10          # seconds
+MAX_GREEN = 60          # seconds
+LOST_TIME = 4           # seconds per phase (yellow + all-red)
+CYCLE_LENGTH = 120      # seconds
+SATURATION_FLOW = 0.5   # vehicles per second of green (= 1800 veh/h)
+GREEN_BUDGET = CYCLE_LENGTH - N_APPROACHES * LOST_TIME
+
+
+def equal_split(budget: int = GREEN_BUDGET) -> list[int]:
+    """The Fixed-Time plan: the budget shared equally between approaches."""
+    base, extra = divmod(budget, N_APPROACHES)
+    return [base + (1 if i < extra else 0) for i in range(N_APPROACHES)]
+
+
+def repair(greens, budget=GREEN_BUDGET, lo=MIN_GREEN, hi=MAX_GREEN) -> list[int]:
+    """Clip to [lo, hi], then add/remove single seconds until the greens sum to the budget."""
+    greens = [min(hi, max(lo, int(round(g)))) for g in greens]
+    while sum(greens) != budget:
+        if sum(greens) > budget:  # take a second from the approach with the most room to give
+            i = max((k for k in range(len(greens)) if greens[k] > lo), key=lambda k: greens[k])
+            greens[i] -= 1
+        else:                     # give a second to the approach with the most room to receive
+            i = min((k for k in range(len(greens)) if greens[k] < hi), key=lambda k: greens[k])
+            greens[i] += 1
+    return greens
+
+
+def fitness(greens, demand_per_hour, cycle=CYCLE_LENGTH) -> float:
+    """Estimated average delay (seconds per vehicle) for these greens. Lower is better."""
+    total_demand = sum(demand_per_hour) or 1.0
+    weighted_delay = 0.0
+    for g, veh_per_hour in zip(greens, demand_per_hour):
+        green_ratio = g / cycle
+        flow = veh_per_hour / 3600.0                       # vehicles per second
+        saturation = min(1.0, flow / (SATURATION_FLOW * green_ratio))  # degree of saturation x
+        delay = cycle * (1 - green_ratio) ** 2 / (2 * (1 - green_ratio * saturation))
+        overflow = max(0.0, flow / (SATURATION_FLOW * green_ratio) - 1.0)  # demand above capacity
+        delay += overflow * cycle * 5                       # penalty so GA avoids oversaturation
+        weighted_delay += veh_per_hour * delay
+    return weighted_delay / total_demand
+
+
+def _random_individual(rng: random.Random) -> list[int]:
+    return repair([rng.randint(MIN_GREEN, MAX_GREEN) for _ in range(N_APPROACHES)])
+
+
+def _tournament(population, scores, rng, k=3):
+    contenders = rng.sample(range(len(population)), k)
+    return population[min(contenders, key=lambda i: scores[i])]
+
+
+def _crossover(a, b, rng):
+    """Uniform crossover: each gene is copied from either parent, then repaired."""
+    return repair([x if rng.random() < 0.5 else y for x, y in zip(a, b)])
+
+
+def _mutate(greens, rng, rate, step=8):
+    """With probability `rate`, move up to `step` seconds from one approach to another."""
+    greens = list(greens)
+    if rng.random() < rate:
+        src, dst = rng.sample(range(N_APPROACHES), 2)
+        greens[src] -= rng.randint(1, step)
+        greens[dst] += rng.randint(1, step)
+    return repair(greens)
+
+
+def optimize(demand_per_hour, population_size=40, generations=60, mutation_rate=0.3,
+             elite_count=2, seed=42) -> dict:
+    """Run the GA. `demand_per_hour` = 4 expected vehicle rates (veh/h), one per approach."""
+    if len(demand_per_hour) != N_APPROACHES:
+        raise ValueError(f"Expected {N_APPROACHES} demand values, got {len(demand_per_hour)}.")
+    rng = random.Random(seed)
+    population = [_random_individual(rng) for _ in range(population_size - 1)]
+    population.append(equal_split())  # seed with the fixed plan, so GA is never worse than it
+    history = []
+    for _ in range(generations):
+        scores = [fitness(ind, demand_per_hour) for ind in population]
+        ranked = sorted(range(len(population)), key=lambda i: scores[i])
+        history.append(scores[ranked[0]])
+        next_gen = [population[i] for i in ranked[:elite_count]]            # elitism
+        while len(next_gen) < population_size:
+            child = _crossover(_tournament(population, scores, rng), _tournament(population, scores, rng), rng)
+            next_gen.append(_mutate(child, rng, mutation_rate))
+        population = next_gen
+    scores = [fitness(ind, demand_per_hour) for ind in population]
+    best = population[min(range(len(population)), key=lambda i: scores[i])]
+    fixed = equal_split()
+    return {
+        "greens": best,
+        "cycle_length": sum(best) + N_APPROACHES * LOST_TIME,
+        "fitness": fitness(best, demand_per_hour),
+        "fixed_greens": fixed,
+        "fixed_fitness": fitness(fixed, demand_per_hour),
+        "history": history,
+        "demand_per_hour": list(demand_per_hour),
+    }
