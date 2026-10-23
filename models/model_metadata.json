@@ -1,0 +1,48 @@
+{
+  "model": "XGBRegressor",
+  "trained_at": "2026-10-23T12:39:46",
+  "features": [
+    "Junction",
+    "hour",
+    "weekday",
+    "is_weekend",
+    "is_peak_hour",
+    "lag_1",
+    "lag_2",
+    "lag_3",
+    "lag_24",
+    "lag_168",
+    "roll_mean_3",
+    "roll_mean_24"
+  ],
+  "target": "Vehicles",
+  "train_rows": 9060,
+  "test_rows": 2268,
+  "train_range": [
+    "2024-01-08 00:00:00",
+    "2024-04-11 08:00:00"
+  ],
+  "test_range": [
+    "2024-04-11 09:00:00",
+    "2024-05-04 23:00:00"
+  ],
+  "metrics": {
+    "xgboost": {
+      "mae": 3.5763332843780518,
+      "rmse": 4.527219255527842,
+      "r2": 0.7956679463386536
+    },
+    "baseline_last_hour": {
+      "mae": 6.036596119929453,
+      "rmse": 7.928499928177531,
+      "r2": 0.37330614427380915
+    },
+    "baseline_same_hour_yesterday": {
+      "mae": 5.3619929453262785,
+      "rmse": 6.923651410463666,
+      "r2": 0.52209258191888
+    }
+  },
+  "best_baseline": "baseline_same_hour_yesterday",
+  "mae_improvement_vs_best_baseline_pct": 33.302163564103104
+}
