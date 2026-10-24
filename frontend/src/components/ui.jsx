@@ -5,6 +5,7 @@ const TAGS = {
   observed: ["Observed (synthetic dataset)", "bg-teal-100 text-teal-800"],
   predicted: ["Predicted (XGBoost)", "bg-indigo-100 text-indigo-800"],
   simulated: ["Simulated", "bg-amber-100 text-amber-800"],
+  evaluated: ["Evaluated on held-out test data", "bg-indigo-100 text-indigo-800"],
 };
 const TONES = { primary: "border-l-teal-700", success: "border-l-green-600", warning: "border-l-amber-500", info: "border-l-sky-500" };
 const ICON_TONES = { primary: "bg-teal-100 text-teal-700", success: "bg-green-100 text-green-700", warning: "bg-amber-100 text-amber-700", info: "bg-sky-100 text-sky-700" };

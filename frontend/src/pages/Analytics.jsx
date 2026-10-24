@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, errorMessage } from "../api/client.js";
 import { BarBox, LineBox } from "../components/charts.jsx";
+import ModelComparison from "../components/ModelComparison.jsx";
 import { ScenarioForm, scenarioStart, useScenario } from "../components/ScenarioForm.jsx";
 import { Async, Button, Card, ErrorBox, Field, KpiRow, Loading, Note, Tag, Warning } from "../components/ui.jsx";
 import { useApi } from "../hooks/useApi.js";
@@ -31,10 +32,14 @@ function AnalyticsView({ summary }) {
   const body = { start: scenarioStart(scenario), demand_scale: scenario.demand_scale };
   return (
     <div className="space-y-5">
-      <p className="text-muted">Genetic Algorithm results and a Fixed-Time vs Adaptive comparison. These results are simulated estimates, not field measurements.</p>
+      <p className="text-muted">Genetic Algorithm results, a Fixed-Time vs Adaptive comparison and a prediction-model comparison. Section A is simulated; section B is measured on held-out data.</p>
+      <h2 className="font-display text-xl font-semibold">A. Traffic Signal Controller Comparison</h2>
+      <p className="-mt-3 text-sm text-muted">Compares traffic control strategies (Fixed-Time vs Adaptive / Genetic Algorithm) in the simulator. These results are simulated estimates, not field measurements.</p>
       <Card title="Scenario"><ScenarioForm summary={summary} value={scenario} onChange={setScenario} /></Card>
       <GeneticSection body={{ ...body, seed: scenario.seed }} onSaved={() => setRefresh((n) => n + 1)} />
       <CompareSection body={{ ...body, base_seed: scenario.seed }} onSaved={() => setRefresh((n) => n + 1)} />
+      <h2 className="pt-2 font-display text-xl font-semibold">B. Machine Learning Model Comparison</h2>
+      <ModelComparison />
       <SavedRuns refresh={refresh} />
     </div>
   );

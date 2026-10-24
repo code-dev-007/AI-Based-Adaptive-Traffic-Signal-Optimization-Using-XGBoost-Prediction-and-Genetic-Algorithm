@@ -127,3 +127,24 @@ def test_websocket_rejects_missing_token():
     with anonymous.websocket_connect("/ws/simulation") as socket:
         with pytest.raises(Exception):      # server closes with code 4401
             socket.receive_json()
+
+
+def test_model_comparison_returns_real_metrics():
+    body = client.get("/api/v1/model-comparison").json()
+    names = [m["name"] for m in body["models"]]
+    assert names == ["Linear Regression", "Random Forest", "XGBoost"]
+    assert body["selection_metric"] == "MAE"
+    assert body["best_model"] == min(body["models"], key=lambda m: m["mae"])["name"]
+    assert all(m["mae"] > 0 and m["rmse"] >= m["mae"] for m in body["models"])
+    assert body["evaluation"]["target"] == "Vehicles" and "ID" not in body["evaluation"]["features"]
+
+
+def test_model_comparison_requires_login():
+    assert anonymous.get("/api/v1/model-comparison").status_code == 401
+
+
+def test_model_comparison_missing_dataset_returns_503(monkeypatch, tmp_path):
+    from backend import model_comparison as mc
+    monkeypatch.setattr(mc.pp, "RAW_PATH", tmp_path / "missing.csv")
+    monkeypatch.setattr(mc, "_memory", {})
+    assert client.get("/api/v1/model-comparison").status_code == 503

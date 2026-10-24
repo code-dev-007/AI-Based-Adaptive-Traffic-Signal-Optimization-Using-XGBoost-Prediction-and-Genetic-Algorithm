@@ -51,6 +51,7 @@ export const api = {
   health: () => get("/health"),
   summary: () => get("/traffic/summary"),
   modelInfo: () => get("/model-info"),
+  modelComparison: (recompute = false) => get("/model-comparison", recompute ? { recompute: true } : undefined),
   predict: (junction, horizon) => post("/predict", { junction, horizon }),
   predictOnTest: (junction) => get("/predict/test", { junction, limit: 168 }),
   optimize: (body) => post("/optimize", body),

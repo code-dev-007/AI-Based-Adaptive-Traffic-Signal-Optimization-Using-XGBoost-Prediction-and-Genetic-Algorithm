@@ -1,0 +1,73 @@
+{
+  "models": [
+    {
+      "name": "Linear Regression",
+      "mae": 3.8869996368962596,
+      "rmse": 4.943385352374153,
+      "r2": 0.7563747395650687
+    },
+    {
+      "name": "Random Forest",
+      "mae": 3.748658465277292,
+      "rmse": 4.771522921647937,
+      "r2": 0.773020093647113
+    },
+    {
+      "name": "XGBoost",
+      "mae": 3.5556726455688477,
+      "rmse": 4.501883006842782,
+      "r2": 0.7979485988616943
+    }
+  ],
+  "best_model": "XGBoost",
+  "selection_metric": "MAE",
+  "evaluation": {
+    "source": "reproducible pipeline (backend/model_comparison.py), not the notebook outputs",
+    "target": "Vehicles",
+    "features": [
+      "Junction",
+      "hour",
+      "weekday",
+      "is_weekend",
+      "is_peak_hour",
+      "lag_1",
+      "lag_2",
+      "lag_3",
+      "lag_24",
+      "lag_168",
+      "roll_mean_3",
+      "roll_mean_24"
+    ],
+    "split": "chronological, earlier 80% of timestamps train / later 20% test, all junctions",
+    "train_rows": 9060,
+    "test_rows": 2268,
+    "train_range": [
+      "2024-01-08 00:00:00",
+      "2024-04-11 08:00:00"
+    ],
+    "test_range": [
+      "2024-04-11 09:00:00",
+      "2024-05-04 23:00:00"
+    ],
+    "computed_at": "2026-10-24T16:03:15"
+  },
+  "_fingerprint": {
+    "dataset_size": 359539,
+    "dataset_mtime": 1792733490,
+    "features": [
+      "Junction",
+      "hour",
+      "weekday",
+      "is_weekend",
+      "is_peak_hour",
+      "lag_1",
+      "lag_2",
+      "lag_3",
+      "lag_24",
+      "lag_168",
+      "roll_mean_3",
+      "roll_mean_24"
+    ],
+    "test_fraction": 0.2
+  }
+}

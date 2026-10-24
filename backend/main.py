@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from backend import auth, db
 from backend import genetic_algorithm as ga
 from backend import model as traffic_model
+from backend import model_comparison
 from backend import preprocessing as pp
 from backend.simulator import Simulation, compare_controllers
 
@@ -209,6 +210,17 @@ def health():
 def model_info():
     _, meta = get_model()
     return meta
+
+
+@protected.get("/api/v1/model-comparison")
+def model_comparison_results(recompute: bool = False):
+    """Linear Regression vs Random Forest vs XGBoost on the same chronological test split.
+    Computed once and cached; pass ?recompute=true to retrain and refresh the cache."""
+    try:
+        result = model_comparison.get_comparison(recompute=recompute)
+    except model_comparison.ComparisonError as error:
+        raise HTTPException(status_code=503, detail=str(error))
+    return {"kind": "evaluated", **result}
 
 
 @protected.get("/api/v1/traffic/summary")
