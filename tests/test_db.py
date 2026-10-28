@@ -13,7 +13,7 @@ def temp_db(monkeypatch, tmp_path):
 
 
 def test_save_list_and_clear_runs(temp_db):
-    first = db.save_run("optimization", "2024-04-15T07:00:00", {"greens": [20, 30, 20, 34]})
+    first = db.save_run("optimization", "2017-04-15T19:00:00", {"greens": [20, 30, 20, 34]})
     db.save_run("comparison", None, {"n_seeds": 3})
     assert first == 1
     rows = db.list_runs()

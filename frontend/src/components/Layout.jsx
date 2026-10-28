@@ -54,7 +54,7 @@ export function Sidebar({ pages, current, onSelect, username, onLogout }) {
           <button onClick={onLogout} title="Sign out" className="rounded p-1 text-teal-100/70 hover:bg-white/10 hover:text-white"><LogOut size={16} /></button>
         </div>
         <p className="px-2 text-xs leading-relaxed text-teal-200/70">
-          Dataset: synthetic (Kaggle). Queues, waits and signal timings on the simulation pages are simulated estimates.
+          Dataset: hourly junction vehicle counts (CSV). Predictions are XGBoost estimates; queues, waits and signal timings are simulated estimates. No real signals are controlled.
         </p>
       </div>
     </aside>

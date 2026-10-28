@@ -1,24 +1,27 @@
 """Load, validate and clean the traffic CSV, then build model features.
 
-All values come from the supplied (synthetic) Kaggle CSV. Nothing is generated
-or imputed here: problems are reported, not silently repaired.
+All values come from the supplied CSV (data/raw/traffic.csv: hourly vehicle counts per junction).
+Nothing is generated or imputed here: problems are reported, not silently repaired.
+Paths are relative to the project folder, so the project runs from any location (Windows included).
+Set the environment variable TRAFFIC_AI_DATA to use a different CSV with the same columns.
 """
+import os
 from pathlib import Path
 
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-RAW_PATH = PROJECT_ROOT / "data" / "raw" / "traffic_ai.csv"
+RAW_PATH = Path(os.getenv("TRAFFIC_AI_DATA") or PROJECT_ROOT / "data" / "raw" / "traffic.csv")
 CLEAN_PATH = PROJECT_ROOT / "data" / "processed" / "traffic_clean.csv"
 FEATURES_PATH = PROJECT_ROOT / "data" / "processed" / "traffic_features.csv"
 
 REQUIRED_COLUMNS = ["ID", "DateTime", "Junction", "Vehicles"]
-# Peak hours chosen from the observed hourly averages (morning 07-09, evening 17-19).
-PEAK_HOURS = (7, 8, 9, 17, 18, 19)
+# No hard-coded "peak hour" feature: the busiest hours differ per dataset (in this CSV they are late
+# morning and 19:00-21:00), so the model learns them from `hour` directly.
 LAGS = (1, 2, 3, 24, 168)  # hours back; 168 = same hour one week earlier
 ROLLING_WINDOWS = (3, 24)
 FEATURE_COLUMNS = (
-    ["Junction", "hour", "weekday", "is_weekend", "is_peak_hour"]
+    ["Junction", "hour", "day", "month", "weekday", "is_weekend"]
     + [f"lag_{n}" for n in LAGS]
     + [f"roll_mean_{n}" for n in ROLLING_WINDOWS]
 )
@@ -50,19 +53,24 @@ def clean(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     df["Vehicles"] = df["Vehicles"].astype(int)
     if (df["Vehicles"] < 0).any():
         raise ValueError("Negative vehicle counts found in the dataset.")
-    df = df.sort_values(["Junction", "DateTime"]).reset_index(drop=True)
+    report["duplicate_ids"] = int(df["ID"].duplicated().sum())  # ID is only an identifier, never a feature
+    df = df.sort_values(["DateTime", "Junction"]).reset_index(drop=True)  # chronological order
     gaps = df.groupby("Junction")["DateTime"].diff().dropna()
     report["hourly_gaps"] = int((gaps != pd.Timedelta(hours=1)).sum())
     report["rows_out"] = len(df)
+    report["rows_per_junction"] = {int(j): int(n) for j, n in df["Junction"].value_counts().sort_index().items()}
+    report["junction_first_record"] = {int(j): str(t) for j, t in df.groupby("Junction")["DateTime"].min().items()}
+    report["junction_last_record"] = {int(j): str(t) for j, t in df.groupby("Junction")["DateTime"].max().items()}
     return df, report
 
 
 def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df["hour"] = df["DateTime"].dt.hour
+    df["day"] = df["DateTime"].dt.day        # day of the month
+    df["month"] = df["DateTime"].dt.month
     df["weekday"] = df["DateTime"].dt.dayofweek  # Monday = 0
     df["is_weekend"] = (df["weekday"] >= 5).astype(int)
-    df["is_peak_hour"] = df["hour"].isin(PEAK_HOURS).astype(int)
     return df
 
 

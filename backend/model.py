@@ -1,5 +1,6 @@
 """XGBoost traffic forecaster: train, evaluate against baselines, save, load, predict.
 
+The target is the hourly vehicle COUNT of a junction (traffic volume), not individual vehicle movements.
 Run `python -m backend.model` to train. Metrics are computed on the chronological
 test set and written to models/model_metadata.json - nothing here is hard-coded.
 """
@@ -53,8 +54,13 @@ def train_and_save(features: pd.DataFrame | None = None) -> dict:
         "xgboost": score(test[pp.TARGET], predicted),
         "baseline_last_hour": score(test[pp.TARGET], test["lag_1"]),
         "baseline_same_hour_yesterday": score(test[pp.TARGET], test["lag_24"]),
+        "baseline_same_hour_last_week": score(test[pp.TARGET], test["lag_168"]),
     }
-    best_baseline = min(("baseline_last_hour", "baseline_same_hour_yesterday"), key=lambda k: metrics[k]["mae"])
+    per_junction = {}
+    for junction, rows in test.assign(predicted=predicted).groupby("Junction"):
+        per_junction[str(int(junction))] = {"test_rows": len(rows), **score(rows[pp.TARGET], rows["predicted"])}
+    best_baseline = min(("baseline_last_hour", "baseline_same_hour_yesterday", "baseline_same_hour_last_week"),
+                        key=lambda k: metrics[k]["mae"])
     metadata = {
         "model": type(model).__name__,
         "trained_at": datetime.now().isoformat(timespec="seconds"),
@@ -65,6 +71,9 @@ def train_and_save(features: pd.DataFrame | None = None) -> dict:
         "train_range": [str(train["DateTime"].min()), str(train["DateTime"].max())],
         "test_range": [str(test["DateTime"].min()), str(test["DateTime"].max())],
         "metrics": metrics,
+        "per_junction_metrics": per_junction,
+        "split": "chronological: earlier 80% of timestamps train, later 20% test (all junctions share the cut-off)",
+        "note": "Target = hourly vehicle count per junction (traffic volume). One-hour-ahead predictions on held-out data.",
         "best_baseline": best_baseline,
         "mae_improvement_vs_best_baseline_pct": (
             100 * (1 - metrics["xgboost"]["mae"] / metrics[best_baseline]["mae"])
@@ -81,7 +90,10 @@ def load_model():
     """Return (model, metadata). Raises ModelNotFoundError if training has not been run."""
     if not MODEL_PATH.exists() or not META_PATH.exists():
         raise ModelNotFoundError("Model not trained yet. Run: python -m backend.model")
-    return joblib.load(MODEL_PATH), json.loads(META_PATH.read_text())
+    metadata = json.loads(META_PATH.read_text())
+    if metadata.get("features") != pp.FEATURE_COLUMNS:
+        raise ModelNotFoundError("The saved model was trained with different features. Retrain with: python -m backend.model")
+    return joblib.load(MODEL_PATH), metadata
 
 
 def predict_rows(model, feature_rows: pd.DataFrame) -> np.ndarray:
@@ -89,18 +101,22 @@ def predict_rows(model, feature_rows: pd.DataFrame) -> np.ndarray:
     return np.clip(model.predict(feature_rows[pp.FEATURE_COLUMNS]), 0, None)
 
 
-def forecast(model, clean_df: pd.DataFrame, junction: int, horizon: int) -> pd.DataFrame:
-    """Predict the `horizon` hours after the end of the data, feeding each prediction back in as history."""
+def forecast(model, clean_df: pd.DataFrame, junction: int, horizon: int, as_of=None) -> pd.DataFrame:
+    """Predict the `horizon` hours after the end of the data (or after `as_of`), feeding each prediction back in
+    as history. With `as_of`, only records up to that hour are used, so the result can be checked against the
+    later observed counts."""
     series = clean_df[clean_df["Junction"] == junction].sort_values("DateTime")
+    if as_of is not None:
+        series = series[series["DateTime"] <= as_of]
     if len(series) < max(pp.LAGS):
-        raise ValueError(f"Junction {junction} needs at least {max(pp.LAGS)} hourly records to forecast.")
+        raise ValueError(f"Junction {junction} needs at least {max(pp.LAGS)} hourly records before the forecast start.")
     values = series["Vehicles"].astype(float).tolist()
     last_time = series["DateTime"].iloc[-1]
     rows = []
     for step in range(1, horizon + 1):
         when = last_time + pd.Timedelta(hours=step)
-        row = {"Junction": junction, "hour": when.hour, "weekday": when.dayofweek,
-               "is_weekend": int(when.dayofweek >= 5), "is_peak_hour": int(when.hour in pp.PEAK_HOURS)}
+        row = {"Junction": junction, "hour": when.hour, "day": when.day, "month": when.month,
+               "weekday": when.dayofweek, "is_weekend": int(when.dayofweek >= 5)}
         for n in pp.LAGS:
             row[f"lag_{n}"] = values[-n]
         for n in pp.ROLLING_WINDOWS:

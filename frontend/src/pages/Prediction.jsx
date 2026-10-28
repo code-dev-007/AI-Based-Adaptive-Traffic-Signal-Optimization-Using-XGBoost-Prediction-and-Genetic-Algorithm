@@ -5,7 +5,7 @@ import { Async, Card, Field, inputClass, Note, Tag } from "../components/ui.jsx"
 import { useApi } from "../hooks/useApi.js";
 import { dateOnly, shortTime } from "../utils.js";
 
-const BASELINES = [["xgboost", "XGBoost"], ["baseline_last_hour", "Baseline: same as last hour"], ["baseline_same_hour_yesterday", "Baseline: same hour yesterday"]];
+const BASELINES = [["xgboost", "XGBoost"], ["baseline_last_hour", "Baseline: same as last hour"], ["baseline_same_hour_yesterday", "Baseline: same hour yesterday"], ["baseline_same_hour_last_week", "Baseline: same hour last week"]];
 
 export default function Prediction() {
   const summary = useApi(api.summary, []);
@@ -74,6 +74,7 @@ function PredictionView({ junctions }) {
                     ))}
                   </tbody>
                 </table>
+                <p className="mt-3 text-xs text-muted">Target: hourly vehicle count per junction (traffic volume, not individual vehicles). MAE and RMSE are in vehicles per hour.</p>
                 <Note>
                   Trained on {dateOnly(m.train_range[0])} to {dateOnly(m.train_range[1])}, tested on {dateOnly(m.test_range[0])} to {dateOnly(m.test_range[1])}.{" "}
                   {change != null && `Test-set MAE is ${Math.abs(change).toFixed(1)}% ${change >= 0 ? "lower" : "higher"} than the best baseline. `}

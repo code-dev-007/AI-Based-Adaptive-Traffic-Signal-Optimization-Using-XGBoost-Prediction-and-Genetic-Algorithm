@@ -34,7 +34,7 @@ def test_clean_reports_duplicates_and_missing():
 def test_time_features():
     df = pp.add_time_features(pd.DataFrame({"DateTime": pd.to_datetime(["2024-01-06 08:00", "2024-01-08 03:00"])}))
     assert df["is_weekend"].tolist() == [1, 0]      # Saturday, Monday
-    assert df["is_peak_hour"].tolist() == [1, 0]
+    assert df["month"].tolist() == [1, 1] and df["day"].tolist() == [6, 8] and df["hour"].tolist() == [8, 3]
 
 
 def test_lag_features_use_only_the_past():
@@ -54,3 +54,24 @@ def test_chronological_split_has_no_overlap():
     train, test = pp.split_chronological(pp.build_features(clean_df), 0.2)
     assert train["DateTime"].max() < test["DateTime"].min()
     assert len(test) > 0
+
+
+def test_real_csv_loads_and_is_not_modified():
+    raw = pp.load_raw()
+    clean_df, report = pp.clean(raw)
+    assert len(clean_df) == len(raw) == report["rows_out"]            # nothing valid is dropped
+    assert report["missing_values"] == 0 and report["duplicates_dropped"] == 0
+    assert sorted(clean_df["Junction"].unique()) == [1, 2, 3, 4]
+    assert clean_df["DateTime"].is_monotonic_increasing                # sorted chronologically
+    merged = raw.merge(clean_df, on="ID", suffixes=("_raw", "_clean"))
+    assert (merged["Vehicles_raw"] == merged["Vehicles_clean"]).all()  # original values preserved
+
+
+def test_lag_features_are_per_junction_on_real_data():
+    clean_df, _ = pp.clean(pp.load_raw())
+    feats = pp.build_features(clean_df)
+    row = feats[feats.Junction == 4].iloc[0]
+    series = clean_df[clean_df.Junction == 4].set_index("DateTime")["Vehicles"]
+    assert row["DateTime"] >= pd.Timestamp("2017-01-08")                # Junction 4 has no history before 2017
+    assert row["lag_1"] == series[row["DateTime"] - pd.Timedelta(hours=1)]
+    assert row["lag_168"] == series[row["DateTime"] - pd.Timedelta(hours=168)]

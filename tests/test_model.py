@@ -8,7 +8,7 @@ from backend import preprocessing as pp
 
 def _features(hours=600):
     times = pd.date_range("2024-01-01", periods=hours, freq="h")
-    rows = [(i, t, j, 10 + 3 * j + (8 if t.hour in pp.PEAK_HOURS else 0)) for j in (1, 2) for i, t in enumerate(times)]
+    rows = [(i, t, j, 10 + 3 * j + (8 if t.hour in (7, 8, 9, 17, 18, 19) else 0)) for j in (1, 2) for i, t in enumerate(times)]
     clean_df, _ = pp.clean(pd.DataFrame(rows, columns=pp.REQUIRED_COLUMNS))
     return clean_df, pp.build_features(clean_df)
 
@@ -31,7 +31,8 @@ def test_training_pipeline_saves_metrics_and_predicts(monkeypatch, tmp_path):
     clean_df, features = _features()
     meta = tm.train_and_save(features)
     assert {"mae", "rmse", "r2"} <= set(meta["metrics"]["xgboost"])
-    assert {"baseline_last_hour", "baseline_same_hour_yesterday"} <= set(meta["metrics"])
+    assert {"baseline_last_hour", "baseline_same_hour_yesterday", "baseline_same_hour_last_week"} <= set(meta["metrics"])
+    assert set(meta["per_junction_metrics"]) == {"1", "2"}
     assert meta["train_range"][1] < meta["test_range"][0]          # chronological split
     model, loaded = tm.load_model()
     assert loaded["features"] == pp.FEATURE_COLUMNS

@@ -1,12 +1,13 @@
 {
   "model": "XGBRegressor",
-  "trained_at": "2026-10-23T12:39:46",
+  "trained_at": "2026-10-28T09:06:04",
   "features": [
     "Junction",
     "hour",
+    "day",
+    "month",
     "weekday",
     "is_weekend",
-    "is_peak_hour",
     "lag_1",
     "lag_2",
     "lag_3",
@@ -16,33 +17,66 @@
     "roll_mean_24"
   ],
   "target": "Vehicles",
-  "train_rows": 9060,
-  "test_rows": 2268,
+  "train_rows": 35908,
+  "test_rows": 11540,
   "train_range": [
-    "2024-01-08 00:00:00",
-    "2024-04-11 08:00:00"
+    "2015-11-08 00:00:00",
+    "2017-03-02 18:00:00"
   ],
   "test_range": [
-    "2024-04-11 09:00:00",
-    "2024-05-04 23:00:00"
+    "2017-03-02 19:00:00",
+    "2017-06-30 23:00:00"
   ],
   "metrics": {
     "xgboost": {
-      "mae": 3.5763332843780518,
-      "rmse": 4.527219255527842,
-      "r2": 0.7956679463386536
+      "mae": 2.740516424179077,
+      "rmse": 4.37623687698589,
+      "r2": 0.9731389880180359
     },
     "baseline_last_hour": {
-      "mae": 6.036596119929453,
-      "rmse": 7.928499928177531,
-      "r2": 0.37330614427380915
+      "mae": 3.805632582322357,
+      "rmse": 5.72064127248489,
+      "r2": 0.9541002255337225
     },
     "baseline_same_hour_yesterday": {
-      "mae": 5.3619929453262785,
-      "rmse": 6.923651410463666,
-      "r2": 0.52209258191888
+      "mae": 5.9108318890814555,
+      "rmse": 10.18343457228658,
+      "r2": 0.8545513561368022
+    },
+    "baseline_same_hour_last_week": {
+      "mae": 4.329116117850953,
+      "rmse": 7.411897316955247,
+      "r2": 0.9229487108081738
     }
   },
-  "best_baseline": "baseline_same_hour_yesterday",
-  "mae_improvement_vs_best_baseline_pct": 33.302163564103104
+  "per_junction_metrics": {
+    "1": {
+      "test_rows": 2885,
+      "mae": 3.9564990997314453,
+      "rmse": 5.720697457000435,
+      "r2": 0.9417187571525574
+    },
+    "2": {
+      "test_rows": 2885,
+      "mae": 2.3007521629333496,
+      "rmse": 2.9110030817495827,
+      "r2": 0.8764373064041138
+    },
+    "3": {
+      "test_rows": 2885,
+      "mae": 2.9059345722198486,
+      "rmse": 5.423530963344043,
+      "r2": 0.7308834791183472
+    },
+    "4": {
+      "test_rows": 2885,
+      "mae": 1.798879861831665,
+      "rmse": 2.447609599448461,
+      "r2": 0.5016309022903442
+    }
+  },
+  "split": "chronological: earlier 80% of timestamps train, later 20% test (all junctions share the cut-off)",
+  "note": "Target = hourly vehicle count per junction (traffic volume). One-hour-ahead predictions on held-out data.",
+  "best_baseline": "baseline_last_hour",
+  "mae_improvement_vs_best_baseline_pct": 27.98788729870768
 }

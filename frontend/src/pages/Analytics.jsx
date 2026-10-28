@@ -3,7 +3,7 @@ import { api, errorMessage } from "../api/client.js";
 import { BarBox, LineBox } from "../components/charts.jsx";
 import ModelComparison from "../components/ModelComparison.jsx";
 import { ScenarioForm, scenarioStart, useScenario } from "../components/ScenarioForm.jsx";
-import { Async, Button, Card, ErrorBox, Field, KpiRow, Loading, Note, Tag, Warning } from "../components/ui.jsx";
+import { Async, Button, Card, ErrorBox, Field, inputClass, KpiRow, Loading, Note, Tag, Warning } from "../components/ui.jsx";
 import { useApi } from "../hooks/useApi.js";
 import { APPROACHES, totalQueue } from "../utils.js";
 import { Activity, Clock, Repeat, Timer } from "lucide-react";
@@ -46,10 +46,17 @@ function AnalyticsView({ summary }) {
 }
 
 function GeneticSection({ body, onSaved }) {
-  const [{ result: r, loading, error }, run] = useAction(() => api.optimize(body), onSaved);
+  const [timing, setTiming] = useState({ cycle_length: 120, min_green: 10, max_green: 60 });
+  const [{ result: r, loading, error }, run] = useAction(() => api.optimize({ ...body, ...timing }), onSaved);
+  const setT = (key) => (e) => setTiming({ ...timing, [key]: Number(e.target.value) });
   const gain = r && r.fixed_fitness ? 100 * (1 - r.fitness / r.fixed_fitness) : 0;
   return (
     <Card title="Genetic Algorithm result" subtitle="Green times for one signal cycle, optimised for the model-predicted demand of the selected hour">
+      <div className="mb-4 grid gap-4 md:grid-cols-3">
+        <Field label="Cycle length (s)"><input type="number" min="20" max="300" className={inputClass} value={timing.cycle_length} onChange={setT("cycle_length")} /></Field>
+        <Field label="Minimum green (s)"><input type="number" min="1" max="120" className={inputClass} value={timing.min_green} onChange={setT("min_green")} /></Field>
+        <Field label="Maximum green (s)"><input type="number" min="1" max="240" className={inputClass} value={timing.max_green} onChange={setT("max_green")} /></Field>
+      </div>
       <Button variant="primary" onClick={run} disabled={loading}>{loading ? "Running..." : "Run Genetic Algorithm"}</Button>
       {error && <div className="mt-3"><ErrorBox message={error} /></div>}
       {loading && <Loading />}
@@ -68,8 +75,14 @@ function GeneticSection({ body, onSaved }) {
             <LineBox xKey="generation" series={["Best fitness"]} yLabel="Seconds per vehicle"
                      data={r.history.map((fitness, i) => ({ generation: i + 1, "Best fitness": Number(fitness.toFixed(3)) }))} />
           </div>
-          <p className="text-xs text-muted">Demand used (simulated vehicles/hour): {APPROACHES.map((n, i) => `${n}: ${r.demand_per_hour[i].toFixed(0)}`).join(", ")}</p>
-          <Note>Fitness = demand-weighted average delay (Webster uniform delay) plus a penalty when an approach is oversaturated. Every plan respects 10-60 s per green and a fixed total cycle.</Note>
+          {r.predicted_vehicles && (
+            <p className="text-xs text-muted">
+              Predicted counts for the hour (XGBoost): {r.predicted_vehicles.map((v, i) => `Junction ${i + 1}: ${v.toFixed(1)}`).join(", ")}
+              {" "}| Observed in the CSV: {r.observed_vehicles.map((v, i) => `Junction ${i + 1}: ${v}`).join(", ")}
+            </p>
+          )}
+          <p className="text-xs text-muted">Demand used (predicted counts × multiplier, simulated vehicles/hour): {APPROACHES.map((n, i) => `${n}: ${r.demand_per_hour[i].toFixed(0)}`).join(", ")}</p>
+          <Note>Fitness = demand-weighted average delay (Webster uniform delay) plus a penalty when an approach is oversaturated. Every plan respects {r.constraints.min_green}-{r.constraints.max_green} s per green and a {r.constraints.cycle_length} s cycle (greens + {r.constraints.lost_time_per_phase} s lost time per phase). Approaches 1-4 take their demand from Junctions 1-4 (a modelling assumption).</Note>
         </div>
       )}
     </Card>

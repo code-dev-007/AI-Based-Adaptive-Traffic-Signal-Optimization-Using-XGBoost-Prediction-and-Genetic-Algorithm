@@ -72,7 +72,7 @@ export default function Login({ onLogin }) {
             ))}
           </ul>
         </div>
-        <p className="text-xs text-teal-200/60">MCA mini-project. The dataset is synthetic (Kaggle), not real-world traffic.</p>
+        <p className="text-xs text-teal-200/60">MCA project prototype. Hourly vehicle counts per junction; signal results are simulated, not live traffic control.</p>
       </div>
 
       <div className="flex flex-1 items-center justify-center px-6 py-10">

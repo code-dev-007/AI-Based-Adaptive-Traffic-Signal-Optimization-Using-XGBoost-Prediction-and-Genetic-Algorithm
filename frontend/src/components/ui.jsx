@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
 const TAGS = {
-  observed: ["Observed (synthetic dataset)", "bg-teal-100 text-teal-800"],
+  observed: ["Observed (CSV dataset)", "bg-teal-100 text-teal-800"],
   predicted: ["Predicted (XGBoost)", "bg-indigo-100 text-indigo-800"],
   simulated: ["Simulated", "bg-amber-100 text-amber-800"],
   evaluated: ["Evaluated on held-out test data", "bg-indigo-100 text-indigo-800"],

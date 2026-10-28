@@ -2,9 +2,10 @@ import { useState } from "react";
 import { dateOnly } from "../utils.js";
 import { Field, inputClass } from "./ui.jsx";
 
-/** Scenario state shared by the Simulation and Analytics pages. Starts at the first hour of the test period. */
+/** Scenario state shared by the Simulation and Analytics pages. Starts at the busiest hour of the day, inside the test period. */
 export function useScenario(summary) {
-  return useState({ day: dateOnly(summary.test_start), hour: 7, demand_scale: 10, seed: 42 });
+  const start = summary.default_scenario_start;
+  return useState({ day: dateOnly(start), hour: Number(start.slice(11, 13)), demand_scale: 3, seed: 42 });
 }
 
 export const scenarioStart = (s) => `${s.day}T${String(s.hour).padStart(2, "0")}:00:00`;
@@ -14,7 +15,7 @@ export function ScenarioForm({ summary, value, onChange }) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
       <Field label="Start date">
-        <input type="date" className={inputClass} value={value.day} min={dateOnly(summary.test_start)} max={dateOnly(summary.end)} onChange={set("day")} />
+        <input type="date" className={inputClass} value={value.day} min={dateOnly(summary.scenario_range[0])} max={dateOnly(summary.scenario_range[1])} onChange={set("day")} />
       </Field>
       <Field label="Start hour">
         <select className={inputClass} value={value.hour} onChange={set("hour")}>

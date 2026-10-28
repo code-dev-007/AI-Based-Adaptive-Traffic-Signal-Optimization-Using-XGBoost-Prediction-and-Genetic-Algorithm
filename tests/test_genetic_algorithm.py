@@ -49,3 +49,30 @@ def test_compare_controllers_returns_both():
     result = compare_controllers([[30, 40, 20, 50]], seed=1)
     assert set(result) == {"fixed", "adaptive"}
     assert result["fixed"]["metrics"]["total_arrived"] == result["adaptive"]["metrics"]["total_arrived"]
+
+
+def test_custom_timing_settings_are_respected():
+    r = ga.optimize([700, 200, 200, 100], cycle_length=90, min_green=8, max_green=40, lost_time=3, seed=2)
+    assert sum(r["greens"]) == 90 - 4 * 3 and all(8 <= g <= 40 for g in r["greens"])
+    assert r["constraints"]["violation_s"] == 0 and r["cycle_length"] == 90
+
+
+def test_impossible_settings_are_rejected():
+    for bad in (dict(cycle_length=40), dict(min_green=30, max_green=20), dict(cycle_length=300, max_green=20)):
+        try:
+            ga.optimize([1, 2, 3, 4], **bad)
+        except ValueError:
+            continue
+        raise AssertionError(f"{bad} should have been rejected")
+
+
+def test_constraint_violations_are_penalised():
+    demand = [100, 100, 100, 100]
+    valid, invalid = [26, 26, 26, 26], [5, 5, 5, 89]
+    assert ga.constraint_violation(valid) == 0 and ga.constraint_violation(invalid) > 0
+    assert ga.fitness(invalid, demand) > ga.fitness(valid, demand) + 1000
+
+
+def test_optimized_plan_beats_equal_split_on_unbalanced_demand():
+    r = ga.optimize([450, 140, 140, 70], seed=4)
+    assert r["fitness"] < r["fixed_fitness"] and r["improvement_pct"] > 0

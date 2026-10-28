@@ -14,7 +14,7 @@ from backend import preprocessing as pp
 
 client = TestClient(main.app)       # signed in (see the temp_database fixture)
 anonymous = TestClient(main.app)    # never signed in
-START = "2024-04-15T07:00:00"
+START = "2017-04-15T19:00:00"
 
 
 @pytest.fixture(autouse=True)
@@ -46,7 +46,10 @@ def test_history_and_summary():
     history = client.get("/api/v1/traffic/history", params={"junction": 1, "limit": 10}).json()
     assert len(history["items"]) == 10 and history["kind"] == "observed"
     assert client.get("/api/v1/traffic/history", params={"junction": 99}).status_code == 404
-    assert client.get("/api/v1/traffic/summary").json()["junctions"] == [1, 2, 3, 4]
+    summary = client.get("/api/v1/traffic/summary").json()
+    assert summary["junctions"] == [1, 2, 3, 4] and summary["records"] == 48120
+    assert {r["Junction"]: r["count"] for r in summary["junction_stats"]} == {1: 14592, 2: 14592, 3: 14592, 4: 4344}
+    assert summary["max_vehicles"] == 180
 
 
 def test_predict_without_model_returns_503(monkeypatch):
@@ -148,3 +151,27 @@ def test_model_comparison_missing_dataset_returns_503(monkeypatch, tmp_path):
     monkeypatch.setattr(mc.pp, "RAW_PATH", tmp_path / "missing.csv")
     monkeypatch.setattr(mc, "_memory", {})
     assert client.get("/api/v1/model-comparison").status_code == 503
+
+
+def test_optimize_accepts_custom_timing_and_rejects_impossible_settings():
+    body = client.post("/api/v1/optimize", json={"demand_per_hour": [200, 300, 150, 400], "cycle_length": 90, "min_green": 8,
+                                                  "max_green": 40, "lost_time": 3}).json()
+    assert sum(body["greens"]) == 78 and all(8 <= g <= 40 for g in body["greens"])
+    assert client.post("/api/v1/optimize", json={"demand_per_hour": [1, 2, 3, 4], "cycle_length": 40}).status_code == 400
+
+
+def test_optimize_from_model_predictions(with_model):
+    body = client.post("/api/v1/optimize", json={"start": START}).json()
+    assert len(body["predicted_vehicles"]) == 4 and len(body["observed_vehicles"]) == 4
+    assert body["fitness"] <= body["fixed_fitness"]
+
+
+def test_scenario_before_junction_4_data_returns_clear_error(with_model):
+    response = client.post("/api/v1/compare", json={"start": "2016-06-01T08:00:00", "hours": 1})
+    assert response.status_code == 400 and "2017-01-08" in response.json()["detail"]
+
+
+def test_forecast_from_past_hour_returns_observed_for_comparison(with_model):
+    body = client.post("/api/v1/predict", json={"junction": 1, "horizon": 3, "as_of": "2017-05-01T10:00:00"}).json()
+    assert body["predictions"][0]["DateTime"] == "2017-05-01 11:00:00" and body["predictions"][0]["observed"] is not None
+    assert client.post("/api/v1/predict", json={"junction": 4, "horizon": 3, "as_of": "2017-01-02T00:00:00"}).status_code == 400

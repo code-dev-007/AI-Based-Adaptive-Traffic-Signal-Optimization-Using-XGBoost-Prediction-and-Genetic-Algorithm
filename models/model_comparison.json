@@ -2,21 +2,21 @@
   "models": [
     {
       "name": "Linear Regression",
-      "mae": 3.8869996368962596,
-      "rmse": 4.943385352374153,
-      "r2": 0.7563747395650687
+      "mae": 3.1180949764365464,
+      "rmse": 4.772072819977317,
+      "r2": 0.9680599754304038
     },
     {
       "name": "Random Forest",
-      "mae": 3.748658465277292,
-      "rmse": 4.771522921647937,
-      "r2": 0.773020093647113
+      "mae": 2.957881721885535,
+      "rmse": 4.8023006872520595,
+      "r2": 0.9676540567912622
     },
     {
       "name": "XGBoost",
-      "mae": 3.5556726455688477,
-      "rmse": 4.501883006842782,
-      "r2": 0.7979485988616943
+      "mae": 2.7645041942596436,
+      "rmse": 4.444173603282536,
+      "r2": 0.9722985029220581
     }
   ],
   "best_model": "XGBoost",
@@ -27,9 +27,10 @@
     "features": [
       "Junction",
       "hour",
+      "day",
+      "month",
       "weekday",
       "is_weekend",
-      "is_peak_hour",
       "lag_1",
       "lag_2",
       "lag_3",
@@ -39,27 +40,28 @@
       "roll_mean_24"
     ],
     "split": "chronological, earlier 80% of timestamps train / later 20% test, all junctions",
-    "train_rows": 9060,
-    "test_rows": 2268,
+    "train_rows": 35908,
+    "test_rows": 11540,
     "train_range": [
-      "2024-01-08 00:00:00",
-      "2024-04-11 08:00:00"
+      "2015-11-08 00:00:00",
+      "2017-03-02 18:00:00"
     ],
     "test_range": [
-      "2024-04-11 09:00:00",
-      "2024-05-04 23:00:00"
+      "2017-03-02 19:00:00",
+      "2017-06-30 23:00:00"
     ],
-    "computed_at": "2026-10-24T16:03:15"
+    "computed_at": "2026-10-28T03:27:54"
   },
   "_fingerprint": {
-    "dataset_size": 359539,
-    "dataset_mtime": 1792733490,
+    "dataset_size": 1767271,
+    "dataset_mtime": 1793123001,
     "features": [
       "Junction",
       "hour",
+      "day",
+      "month",
       "weekday",
       "is_weekend",
-      "is_peak_hour",
       "lag_1",
       "lag_2",
       "lag_3",
